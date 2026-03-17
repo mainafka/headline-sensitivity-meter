@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>מי אתה מול הכותרת?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FDF8F3;
+      --card: #FFFCF8;
+      --border: #E8DDD2;
+      --text: #2D2016;
+      --muted: #8C7B6E;
+      --accent: #C17B3F;
+      --accent-light: #F5E6D3;
+      --accent-dark: #8A5425;
+      --tag-bg: #FAC775;
+      --tag-text: #412402;
+      --green: #4A7C59;
+      --green-bg: #EBF4EE;
+    }
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      direction: rtl;
+      min-height: 100vh;
+    }
+    #app {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 4rem;
+    }
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* ── Intro ── */
+    .intro-header {
+      background: var(--accent-light);
+      border-radius: 20px;
+      padding: 2.5rem 1.5rem 2rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    .intro-icon { font-size: 48px; margin-bottom: 0.75rem; }
+    h1 { font-size: 26px; font-weight: 700; margin-bottom: 0.5rem; }
+    .intro-sub { font-size: 15px; color: var(--muted); line-height: 1.7; }
+    .intro-steps {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 1.25rem 0 1.75rem;
+    }
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 0.875rem 1rem;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .step-num { font-weight: 700; color: var(--accent); font-size: 15px; display: block; margin-bottom: 3px; }
+
+    /* ── Buttons ── */
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-family: 'Heebo', sans-serif;
+      cursor: pointer;
+      color: var(--text);
+      background: var(--card);
+      transition: all 0.15s;
+    }
+    .btn:hover { background: var(--accent-light); border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 500; }
+    .btn-primary:hover { background: var(--accent-dark); }
+
+    /* ── Progress ── */
+    .progress-wrap { margin-bottom: 1.25rem; }
+    .progress-top { display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .progress-label { font-size: 13px; color: var(--muted); }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; }
+    .progress-fill { height: 6px; background: var(--accent); border-radius: 3px; transition: width 0.4s; }
+
+    /* ── Headline card ── */
+    .hcard {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .hint { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .htext { font-size: 19px; font-weight: 500; line-height: 1.85; margin-bottom: 1.5rem; }
+    .word { cursor: pointer; border-radius: 4px; padding: 1px 3px; transition: background 0.1s; display: inline; }
+    .word:hover { background: var(--accent-light); }
+    .word.sel { background: var(--tag-bg); color: var(--tag-text); }
+
+    .slabel {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ── Emotions ── */
+    .emotions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem; justify-content: center; }
+    .ebtn {
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 7px 16px;
+      font-size: 14px;
+      font-family: 'Heebo', sans-serif;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .ebtn:hover { background: var(--accent-light); border-color: var(--accent); }
+    .ebtn.sel { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Dot scale ── */
+    .scale-block { margin-bottom: 1.25rem; }
+    .scale-ends { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .scale-end { font-size: 11px; color: var(--muted); }
+    .dots { display: flex; justify-content: space-between; }
+    .dot-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 2px;
+    }
+    .dot {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--muted);
+      font-family: 'Heebo', sans-serif;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .dot-btn:hover .dot { border-color: var(--accent); background: var(--accent-light); }
+    .dot-btn.active .dot { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+    /* ── Nav ── */
+    .nav-row { display: flex; justify-content: space-between; align-items: center; }
+
+    /* ── Summary ── */
+    .smgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+    .smc { background: var(--accent-light); border-radius: 14px; padding: 1.25rem; text-align: center; }
+    .smc-label { font-size: 12px; color: var(--accent-dark); margin-bottom: 4px; }
+    .smc-val { font-size: 32px; font-weight: 700; color: var(--accent-dark); }
+    .smc-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .wcloud {
+      display: flex; flex-wrap: wrap; gap: 8px;
+      padding: 1rem; background: var(--accent-light);
+      border-radius: 12px; margin-bottom: 1rem; min-height: 52px;
+    }
+    .wword { border-radius: 4px; padding: 3px 9px; background: var(--tag-bg); color: var(--tag-text); font-size: 13px; font-weight: 500; }
+    .epills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
+    .epill { padding: 5px 14px; border-radius: 20px; font-size: 13px; background: var(--card); border: 1px solid var(--border); }
+
+    .pcard { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 1.5rem; margin-bottom: 1rem; }
+    .panim { font-size: 44px; text-align: center; margin-bottom: 0.5rem; }
+    .ptitle { font-size: 19px; font-weight: 700; text-align: center; margin-bottom: 0.25rem; }
+    .prange { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 1rem; }
+    .pdesc { font-size: 14px; line-height: 1.8; color: var(--muted); margin-bottom: 1rem; }
+    .tipbox {
+      background: var(--accent-light);
+      border-right: 3px solid var(--accent);
+      padding: 0.875rem 1rem;
+      border-radius: 0 12px 12px 0;
+      font-size: 13px; line-height: 1.7;
+    }
+
+    /* ── DB Panel ── */
+    .db-section { margin-top: 2rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+    .db-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .db-title { font-size: 15px; font-weight: 700; }
+    .db-badge { font-size: 12px; background: var(--green-bg); color: var(--green); padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+    .db-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+    .db-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .db-card-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .db-card-val { font-size: 22px; font-weight: 700; }
+    .db-card-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .bar-label { font-size: 12px; color: var(--muted); min-width: 58px; text-align: right; }
+    .bar-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 8px; background: var(--accent); border-radius: 4px; }
+    .db-note { font-size: 11px; color: var(--muted); text-align: center; margin-top: 0.75rem; }
+    .saving { font-size: 13px; color: var(--green); text-align: center; margin: 0.75rem 0; }
+
+    /* ── Setup notice ── */
+    .setup-box {
+      background: #FFF8ED;
+      border: 1px solid #F5D48A;
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #6B4A00;
+      margin-bottom: 1rem;
+    }
+    .setup-box a { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- INTRO -->
+  <div id="screen-intro" class="screen active">
+    <div class="intro-header">
+      <div class="intro-icon">📰</div>
+      <h1>מי אתה מול הכותרת?</h1>
+      <p class="intro-sub">בדוק את רמת הרגישות שלך לכותרות חדשותיות<br>ואת הנטייה שלך להפיץ מידע</p>
+    </div>
+    <div class="intro-steps">
+      <div class="step-card"><span class="step-num">01</span>סמן מילים שמפעילות אותך</div>
+      <div class="step-card"><span class="step-num">02</span>בחר את הרגש שהכותרת מעוררת</div>
+      <div class="step-card"><span class="step-num">03</span>דרג עוררות רגשית (0–5)</div>
+      <div class="step-card"><span class="step-num">04</span>דרג סיכוי לשיתוף (0–5)</div>
+    </div>
+    <div style="text-align:center;">
+      <button class="btn btn-primary" onclick="startApp()" style="padding:13px 40px;font-size:16px;">מתחילים →</button>
+    </div>
+  </div>
+
+  <!-- HEADLINE -->
+  <div id="screen-headline" class="screen">
+    <div class="progress-wrap">
+      <div class="progress-top">
+        <span class="progress-label" id="counter">כותרת 1 מתוך 20</span>
+        <span class="progress-label" id="pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+    </div>
+    <div class="hcard">
+      <p class="hint">לחץ על מילים שמפעילות אותך ↓</p>
+      <div class="htext" id="hwords"></div>
+
+      <div class="slabel">רגש</div>
+      <div class="emotions">
+        <button class="ebtn" onclick="selEmo(this,'עצב')">😢 עצב</button>
+        <button class="ebtn" onclick="selEmo(this,'כעס')">😡 כעס</button>
+        <button class="ebtn" onclick="selEmo(this,'פחד')">😨 פחד</button>
+        <button class="ebtn" onclick="selEmo(this,'גועל')">🤢 גועל</button>
+        <button class="ebtn" onclick="selEmo(this,'הנאה')">😄 הנאה</button>
+        <button class="ebtn" onclick="selEmo(this,'סקרנות')">🧐 סקרנות</button>
+        <button class="ebtn" onclick="selEmo(this,'בלבול')">😕 בלבול</button>
+        <button class="ebtn" onclick="selEmo(this,'ייאוש')">😞 ייאוש</button>
+        <button class="ebtn" onclick="selEmo(this,'ניטרלי')">😐 ניטרלי</button>
+      </div>
+
+      <div class="slabel">עוררות רגשית</div>
+      <div class="scale-block">
+        <div class="scale-ends">
+          <span class="scale-end">בכלל לא</span>
+          <span class="scale-end">במידה רבה מאוד</span>
+        </div>
+        <div class="dots" id="dots-ar"></div>
+      </div>
+
+      <div class="slabel">סיכוי לשיתוף</div>
+      <div class="scale-block">
+        <div class="scale-ends">
+          <span class="scale-end">לא סביר שאשתף</span>
+          <span class="scale-end">סביר מאוד שאשתף</span>
+        </div>
+        <div class="dots" id="dots-sh"></div>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="btn" id="bprev" onclick="go(-1)">← הקודם</button>
+      <button class="btn btn-primary" id="bnext" onclick="go(1)">הבא →</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div id="screen-summary" class="screen">
+    <div id="sum"></div>
+  </div>
+
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 🔧 FIREBASE CONFIG
+// החלף את הערכים האלה עם הפרטים מ-Firebase שלך
+// (ראה הוראות בקובץ README.md)
+// ─────────────────────────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+let db = null;
+const firebaseReady = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
+if (firebaseReady) {
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+  } catch(e) {
+    console.warn('Firebase init error:', e);
+  }
+}
+
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const HL = [
+  "עלי חמינאי אסר לבחור בבנו למנהיג העליון החדש: הדרמה מאחורי בחירת מוג'תבא",
+  "בשבועיים מפרוץ מבצע שאגת הארי צנחו ההזמנות למסעדות בכל הארץ ב-77% בהשוואה לתקופה המקבילה בשנה שעברה",
+  "באוצר מבהירים: אין עיכוב במתווה הפיצוי לעסקים ולעובדים על ימי שאגת הארי",
+  "ראשי ישיבות ומכינות נגד שילוב נשים בכלי רכב קרביים משוריינים: חולשה מוסרית",
+  "ארקיע מבטלת את הטיסות הסדירות עד 28.3 שלושה ימים לפני ליל הסדר",
+  "משרד הבריאות הלבנוני: 886 הרוגים ו-2,141 פצועים מאז חידוש הלחימה",
+  "המשטרה מכחישה ניסיון פיגוע בקניון הדר בירושלים",
+  "אחרי 8 שנים: בית המשפט קבע שמתנחל יידה אבן שהרגה אם לשמונה ילדים",
+  "הדחת בן גביר: היועמשית מתנגדת לבקשת נתניהו לדחיית הדיון",
+  "ניצלו את האזעקות, פרצו לביתו של הקשיש העיוור ורכשו מהאשראי שלו באלפי שקלים",
+  "היועמשית מתנגדת לבקשת נתניהו לדחות את הדיון בפיטורי בן גביר",
+  "הבכיר מסביר: התקיפה באיראן בזכות נפתלי בנט",
+  "כל השאר חוסלו?: הרשת באיראן מתפוצצת על המינוי של מוג'תבא חמינאי",
+  "חטיבה 401 משמידה את מאגרי הנשק של חיזבאללה בדרום לבנון",
+  "יש ממד? הולכים לעבודה. לימודים בכיתות באזורים צהובים: ההנחיות המעודכנות",
+  "שבר טיל נפל סמוך לכנסת ישראל",
+  "בין חומרי ההסתה לטילים: מה גילו כוחותינו בתשתיות חיזבאללה?",
+  "המאבק בהסתה: 32 נעצרו מאז תחילת מבצע שאגת הארי",
+  "בשל המצב הביטחוני: אלו הנחיות פיקוד העורף המעודכנות",
+  "מסתמן: הקלות בפתיחת מוסדות החינוך המיוחד בכל הארץ למעט אזורים מאוימים במיוחד"
+];
+
+const SENS = [
+  { min:0, max:20, a:'🐄', n:'פרה קולית', d:'גם אם אתה קורא את הכותרות, אתה לא נוטה להגיב אליהן באופן פעיל. מערכת העצבים שלך רגועה וזורמת, ולא מתכווצת מכל מילה. יש לך מעט מאוד טריגרים, ואתה לא תתפשר על איכות מהימנות המידע שאתה צורך.', t:'נסה להגיע לצריכת החדשות מראש עם רשימת קריטריונים שתקבע עבורך מה נחשב מידע מוסיף ומזין. כשאתה מנסה לגבש עמדה ולהעריך מידע חדש שמגיע אלייך מכותרת, עוזר להסביר לעצמך את העמדה שאתה מחזיק בה ולחשוב מה במידע החדש יכול לשנות אותה.' },
+  { min:20, max:40, a:'🐱', n:'חתול סקפטי', d:'כשאתה קורא כותרות התגובה הראשונית שלך היא סקפטיות. אתה מסוגל להשהות את התגובה הרגשית ולאפשר לעצמך אדישות מסוימת עד שמידע מעורפל מתבהר. אתה סקרן ויכול לשאול שאלות טובות.', t:'נסה לחשוב באיזה אופן המידע החדש שקיבלת מהכותרת משנה את מה שכבר ידעת. שאל את עצמך באיזה אופן המידע הזה משפיע על אופן ההתנהלות שלך, ומה מידת הסיכון בפעולה שמסתמכת על המידע הזה אם הוא שגוי.' },
+  { min:40, max:60, a:'🐕', n:'כלב ערני', d:'סף העוררות הרגשית שלך מכותרות חדשותיות הוא גבוה. אולי לא כל כותרת תפעיל אותך מיד, אבל יש מילות טריגר שיכולות להעיר בך את מערכת העצבים באופן לא בריא, ולהוביל לקבלת החלטות מבוססת פחד.', t:'בחן את רשימת המילים שסימנת כמטרגרות, ובפעם הבאה שתיתקל בהן בכותרת חדשותית, נסה לעצור ולשאול את עצמך כיצד המשמעות של הכותרת הייתה משתנה אם היינו מחליפים את המילה הזו במילה מעוררת פחות.' },
+  { min:60, max:80, a:'🐰', n:'ארנב רגיש', d:'כשאתה קורא כותרות מערכת העצבים שלך מגיבה אליהן במהירות ובחדות. מידע שמגיע אלייך יכול להביא אותך בקלות לעוררות יתר, חרדה, וסטרס באופן מתמשך.', t:'לאחר קריאה של כותרת, שאל את עצמך "איך התוכן הזה גורם לי להרגיש?", "האם הכותרת מנוסחת בצורה זו כדי לעורר בי רגש מסוים?", "האם המידע שקיבלתי מעודד אותי לפעולה או לקפיאה?".' },
+  { min:80, max:101, a:'🦋', n:'פרפר שברירי', d:'כותרות משפיעות עלייך בעוצמה רבה, מערכת העצבים שלך קולטת איומים מהר מהרגיל. ייתכן ואתה נמצא בעוררות יתר בחיפוש אחר מידע שיספק לך וודאות.', t:'הגדר "שעות התעדכנות" קבועות – פעמיים ביום לכל היותר. הימנע מחדשות שעה לפני שינה. אחרי קריאה מטרידה, עצור ושאל: "האם זה משפיע על חיי עכשיו?", "האם המידע הזה מאומת ונכון בוודאות?".' }
+];
+
+const VIRAL = [
+  { min:0, max:20, l:'נמוכה מאוד', d:'ויראליות נמוכה משמעותה עזרה בעצירה של מגיפת מידע כוזב, כל הכבוד! לא משתפים תוכן שעלול לפגוע באחרים.' },
+  { min:20, max:40, l:'נמוכה', d:'ויראליות נמוכה משמעותה עזרה בעצירה של מגיפת מידע כוזב, כל הכבוד! לא משתפים תוכן שעלול לפגוע באחרים.' },
+  { min:40, max:60, l:'בינונית', d:'גם אם אנחנו רוצים לשתף מידע כדי לעזור, כדאי לזכור שמידע שמפעיל אותנו רגשית פוגע בשיקול הדעת שלנו. לפני שמשתפים כדאי לעצור ולשאול: "כיצד אשפיע על אחרים אם אשתף את המידע הזה?"' },
+  { min:60, max:80, l:'גבוהה', d:'מידע שמפעיל אותנו רגשית פוגע בשיקול הדעת שלנו. לפני שמשתפים כדאי לעצור ולשאול: "כיצד אשפיע על אחרים אם אשתף את המידע הזה?" כדאי לשתף רק מידע מאומת, רלוונטי, מעודכן, ושימושי לאחרים.' },
+  { min:80, max:101, l:'גבוהה מאוד', d:'מידע שמפעיל אותנו רגשית פוגע בשיקול הדעת שלנו. לפני שמשתפים כדאי לעצור ולשאול: "כיצד אשפיע על אחרים אם אשתף את המידע הזה?" כדאי לשתף רק מידע מאומת, רלוונטי, מעודכן, ושימושי לאחרים.' }
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let idx = 0;
+let resp = HL.map(() => ({ words: [], emo: null, ar: 0, sh: 0 }));
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+function ss(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function startApp() { showH(0); ss('headline'); }
+
+function buildDots(containerId, scaleKey, currentVal) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  for (let v = 0; v <= 5; v++) {
+    const btn = document.createElement('button');
+    btn.className = 'dot-btn' + (currentVal === v ? ' active' : '');
+    btn.innerHTML = '<div class="dot">' + v + '</div>';
+    const val = v;
+    btn.onclick = () => {
+      resp[idx][scaleKey] = val;
+      document.querySelectorAll('#' + containerId + ' .dot-btn')
+        .forEach((b, i) => b.classList.toggle('active', i === val));
+    };
+    c.appendChild(btn);
+  }
+}
+
+function showH(i) {
+  idx = i;
+  const r = resp[i];
+  const pct = Math.round((i / 20) * 100);
+  document.getElementById('progress').style.width = pct + '%';
+  document.getElementById('pct').textContent = pct + '%';
+  document.getElementById('counter').textContent = 'כותרת ' + (i + 1) + ' מתוך 20';
+
+  const c = document.getElementById('hwords');
+  c.innerHTML = '';
+  HL[i].split(' ').forEach((w, wi) => {
+    const sp = document.createElement('span');
+    sp.className = 'word' + (r.words.includes(wi) ? ' sel' : '');
+    sp.textContent = w + ' ';
+    sp.onclick = () => {
+      const pos = r.words.indexOf(wi);
+      pos === -1 ? r.words.push(wi) : r.words.splice(pos, 1);
+      sp.classList.toggle('sel', r.words.includes(wi));
+    };
+    c.appendChild(sp);
+  });
+
+  document.querySelectorAll('.ebtn').forEach(b =>
+    b.classList.toggle('sel', r.emo && b.textContent.includes(r.emo))
+  );
+  buildDots('dots-ar', 'ar', r.ar);
+  buildDots('dots-sh', 'sh', r.sh);
+  document.getElementById('bprev').style.visibility = i === 0 ? 'hidden' : 'visible';
+  document.getElementById('bnext').textContent = i === 19 ? 'סיום וקבלת תוצאות →' : 'הבא →';
+}
+
+function selEmo(btn, e) {
+  resp[idx].emo = resp[idx].emo === e ? null : e;
+  const cur = resp[idx].emo;
+  document.querySelectorAll('.ebtn').forEach(b =>
+    b.classList.toggle('sel', cur && b.textContent.includes(cur))
+  );
+}
+
+function go(d) {
+  if (d === 1 && idx === 19) { buildSummary(); ss('summary'); return; }
+  showH(Math.max(0, Math.min(19, idx + d)));
+}
+
+// ─────────────────────────────────────────────
+// FIREBASE DB
+// ─────────────────────────────────────────────
+async function saveToDb(entry) {
+  if (!db) return false;
+  try {
+    await db.collection('responses').add(entry);
+    return true;
+  } catch (e) {
+    console.warn('Save error:', e);
+    return false;
+  }
+}
+
+async function loadDbStats() {
+  if (!db) return null;
+  try {
+    const snap = await db.collection('responses').get();
+    if (snap.empty) return null;
+    let tA = 0, tS = 0, em = {}, count = 0;
+    snap.forEach(doc => {
+      const d = doc.data();
+      tA += d.arousalScore || 0;
+      tS += d.sharingScore || 0;
+      count++;
+      if (d.topEmo) em[d.topEmo] = (em[d.topEmo] || 0) + 1;
+    });
+    return { count, avgA: Math.round(tA / count), avgS: Math.round(tS / count), em };
+  } catch (e) {
+    console.warn('Load error:', e);
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────
+// SUMMARY
+// ─────────────────────────────────────────────
+async function buildSummary() {
+  try {
+  const tA = resp.reduce((s, r) => s + r.ar, 0);
+  const tS = resp.reduce((s, r) => s + r.sh, 0);
+  const sA = Math.round((tA / 100) * 100);
+  const sS = Math.round((tS / 100) * 100);
+  const sp = SENS.find(p => sA >= p.min && sA < p.max);
+  const vp = VIRAL.find(p => sS >= p.min && sS < p.max);
+
+  const wmap = {};
+  resp.forEach((r, ri) => r.words.forEach(wi => {
+    const w = HL[ri].split(' ')[wi];
+    if (w) wmap[w] = (wmap[w] || 0) + 1;
+  }));
+  const tw = Object.entries(wmap).sort((a, b) => b[1] - a[1]).slice(0, 20);
+  const em = {};
+  resp.forEach(r => { if (r.emo) em[r.emo] = (em[r.emo] || 0) + 1; });
+  const te = Object.entries(em).sort((a, b) => b[1] - a[1]);
+  const topEmoStr = te.length > 0 ? te[0][0] : null;
+
+  const entry = { arousalScore: sA, sharingScore: sS, sensProfile: sp.n, viralLevel: vp.l, topEmo: topEmoStr, ts: new Date() };
+  const saved = await saveToDb(entry);
+
+  let html = '<h1 style="margin-bottom:1.25rem;">הפרופיל שלך</h1>';
+
+  if (!db) {
+    html += '<div class="setup-box">⚠️ מאגר הנתונים טרם הוגדר. לראות הוראות הגדרה ראה את קובץ <strong>README.md</strong> בתיקייה.</div>';
+  }
+
+  html += '<div class="smgrid">';
+  html += '<div class="smc"><div class="smc-label">ניקוד עוררות</div><div class="smc-val">' + sA + '</div><div class="smc-sub">מתוך 100</div></div>';
+  html += '<div class="smc"><div class="smc-label">ניקוד ויראליות</div><div class="smc-val">' + sS + '</div><div class="smc-sub">מתוך 100</div></div>';
+  html += '</div>';
+
+  if (tw.length > 0) {
+    html += '<div class="slabel" style="margin-bottom:8px;">מילים שהפעילו אותך</div>';
+    html += '<div class="wcloud">' + tw.map(([w]) => '<span class="wword">' + w + '</span>').join('') + '</div>';
+  }
+  if (te.length > 0) {
+    html += '<div class="slabel" style="margin-bottom:8px;">רגשות מובילים</div>';
+    html += '<div class="epills">' + te.map(([e, c]) => '<span class="epill">' + e + ' × ' + c + '</span>').join('') + '</div>';
+  }
+
+  html += '<div class="pcard"><div class="panim">' + sp.a + '</div><div class="ptitle">' + sp.n + '</div>';
+  html += '<div class="prange">ניקוד ' + sA + ' | טווח ' + sp.min + '–' + sp.max + '</div>';
+  html += '<div class="pdesc">' + sp.d + '</div><div class="tipbox"><strong>טיפ:</strong> ' + sp.t + '</div></div>';
+
+  html += '<div class="pcard"><div class="ptitle">רמת סיכון ויראלי: ' + vp.l + '</div>';
+  html += '<div class="prange">ניקוד ' + sS + ' | טווח ' + vp.min + '–' + vp.max + '</div>';
+  html += '<div class="pdesc">' + vp.d + '</div></div>';
+
+  if (saved) html += '<div class="saving">✓ התוצאות שלך נשמרו במאגר המשותף</div>';
+
+  html += '<div class="db-section"><div id="db-inner"><div class="slabel" style="text-align:center;margin:1rem 0;">טוען נתוני מאגר...</div></div></div>';
+  html += '<div style="text-align:center;margin-top:1.5rem;"><button class="btn btn-primary" onclick="restart()">התחל מחדש</button></div>';
+
+  document.getElementById('sum').innerHTML = html;
+
+  const stats = await loadDbStats();
+  const dbEl = document.getElementById('db-inner');
+  if (!stats) {
+    dbEl.innerHTML = '<div class="slabel" style="text-align:center;margin:1rem 0;">אין עדיין נתונים במאגר</div>';
+    return;
+  }
+  const emos = ['פחד', 'כעס', 'עצב', 'גועל', 'הנאה', 'סקרנות', 'בלבול', 'ייאוש', 'ניטרלי'];
+  const maxEmo = Math.max(...emos.map(e => stats.em[e] || 0), 1);
+  let dbHtml = '<div class="db-header"><span class="db-title">נתוני כלל המשתמשים</span><span class="db-badge">' + stats.count + ' משתמשים</span></div>';
+  dbHtml += '<div class="db-grid">';
+  dbHtml += '<div class="db-card"><div class="db-card-label">עוררות ממוצעת</div><div class="db-card-val">' + stats.avgA + '</div><div class="db-card-sub">מתוך 100</div></div>';
+  dbHtml += '<div class="db-card"><div class="db-card-label">ויראליות ממוצעת</div><div class="db-card-val">' + stats.avgS + '</div><div class="db-card-sub">מתוך 100</div></div>';
+  dbHtml += '</div>';
+  dbHtml += '<div class="db-card" style="margin-bottom:10px;"><div class="db-card-label" style="margin-bottom:10px;">התפלגות רגשות</div>';
+  emos.forEach(e => {
+    const cnt = stats.em[e] || 0;
+    const pct = Math.round((cnt / maxEmo) * 100);
+    dbHtml += '<div class="bar-row"><span class="bar-label">' + e + '</span><div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div><span style="font-size:12px;color:var(--muted);min-width:24px;">' + cnt + '</span></div>';
+  });
+  dbHtml += '</div><div class="db-note">הנתונים מצטברים מכל המשתמשים שמילאו את השאלון</div>';
+  dbEl.innerHTML = dbHtml;
+  } catch(e) {
+    console.error('Summary error:', e);
+    document.getElementById('sum').innerHTML = '<div style="padding:2rem;text-align:center;color:var(--muted);">שגיאה בטעינת הסיכום. נסי לרענן את הדף.</div>';
+  }
+}
+
+function restart() {
+  resp = HL.map(() => ({ words: [], emo: null, ar: 0, sh: 0 }));
+  ss('intro');
+}
+</script>
+</body>
+</html>
